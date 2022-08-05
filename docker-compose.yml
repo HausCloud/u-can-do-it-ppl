@@ -1,11 +1,18 @@
 version: "3.9"
 
 services:
+
   database:
     build:
       context: ./database
     ports:
       - 5432:5432
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
 
     environment:
       POSTGRES_USER: arnold
