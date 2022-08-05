@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  database:
+    build:
+      context: ./database
+    ports:
+      - 5432:5432
+
+    environment:
+      POSTGRES_USER: arnold
+      POSTGRES_PASSWORD: maxchicken123
+      POSTGRES_DB: u_can_do_it_ppl
