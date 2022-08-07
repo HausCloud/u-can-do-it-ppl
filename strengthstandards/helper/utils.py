@@ -1,4 +1,5 @@
 import re
+from selenium.webdriver.chrome.options import Options
 
 
 def table_namer(string: str) -> str:
@@ -24,7 +25,7 @@ def table_namer(string: str) -> str:
     return new_table_name
 
 
-def get_driver(options, driver_name: str = ""):
+def get_driver(driver_name: str = "", options: Options = None):
     if driver_name == "Google Chrome":
         from selenium import webdriver
         from selenium.webdriver.chrome.service import Service as ChromeService
