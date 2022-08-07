@@ -7,6 +7,5 @@
 ['database']
 
 ['strengthstandards']
-chrome_driver_path = './chromedriver.exe'
 urls_path = './urls.json'
-table_data_path = './table_data.json'
+table_data_path = '../backend/table_data.json'

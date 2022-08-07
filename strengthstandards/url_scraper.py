@@ -1,9 +1,8 @@
-from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
-from selenium.webdriver.chrome.service import Service
+from helper.utils import get_driver
 import toml
 import json
 
@@ -25,8 +24,6 @@ def main():
     with open("../config.toml") as f:
         config = toml.load(f)
 
-    more_locator = (By.XPATH, "//button[text()='More Exercises...']")
-
     # Setup options
     options = Options()
     options.headless = True
@@ -36,9 +33,10 @@ def main():
     options.add_argument("window-size=1920,1080")
 
     # Open browser
-    service = Service(executable_path=config["strengthstandards"]["chrome_driver_path"])
-    driver = webdriver.Chrome(service=service, options=options)
+    driver = get_driver("Google Chrome", options=options)
     driver.get(url="https://strengthlevel.com/strength-standards")
+
+    more_locator = (By.XPATH, "//button[text()='More Exercises...']")
 
     # Wait until button is in DOM
     btn_element = WebDriverWait(driver, 3).until(

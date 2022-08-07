@@ -36,4 +36,5 @@ virt
 
 # Misc
 chromedriver.exe
+table_data.json
 urls.json

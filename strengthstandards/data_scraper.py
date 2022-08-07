@@ -6,39 +6,26 @@ TODO:
 
 """
 
-from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
-from selenium.webdriver.chrome.service import Service
 from selenium.common.exceptions import TimeoutException, WebDriverException
-from helper.utils import table_namer
+from helper.utils import table_namer, get_driver
 from helper.enums import HumanProperty
 from multiprocessing import cpu_count, Pool
 from math import ceil
-from pprint import pprint
 import toml
 import json
 
 
 def pull_table_data(args):
-    url, config = args[0], args[1]
     timer = 3
 
-    options = Options()
-    options.headless = True
-    options.add_argument("--log-level=3")
-    options.add_experimental_option("excludeSwitches", ["enable-logging"])
-    options.add_argument("window-size=1920,1080")
-
-    service = Service(executable_path=config["strengthstandards"]["chrome_driver_path"])
-    driver = webdriver.Chrome(service=service, options=options)
+    driver = get_driver("Google Chrome", options=args[1])
+    driver.get(url=args[0])
 
     weight_locator = (By.XPATH, f"//a[text()='{HumanProperty.W.value}']")
-    age_locator = (By.XPATH, f"//a[text()='{HumanProperty.A.value}']")
-
-    driver.get(url=url)
     try:
         btn_element = WebDriverWait(driver, timer).until(
             method=expected_conditions.presence_of_element_located(weight_locator),
@@ -51,6 +38,7 @@ def pull_table_data(args):
         ).click()
     except TimeoutException:
         return ([], [], None)
+
     """
     Gonna rely that their naming convention for the button is consistent w/ first table header
     Pull lifts by weight
@@ -59,11 +47,11 @@ def pull_table_data(args):
         by=By.XPATH,
         value=f"//table[./thead/tr/th/abbr[@title='{HumanProperty.W.value.split(' ')[1]}']]",
     )
-    rows = tbl_element.find_elements(by=By.XPATH, value=".//tbody/tr")
 
     lift_attr = "one_rep_max"
-
+    rows = tbl_element.find_elements(by=By.XPATH, value=".//tbody/tr")
     weight_data = []
+
     try:
         for row in rows:
             row_data = []
@@ -79,6 +67,7 @@ def pull_table_data(args):
     except WebDriverException as e:
         return ([], [], None)
 
+    age_locator = (By.XPATH, f"//a[text()='{HumanProperty.A.value}']")
     try:
         WebDriverWait(driver, timer).until(
             method=expected_conditions.presence_of_element_located(age_locator),
@@ -122,12 +111,18 @@ def main():
     with open(file=config["strengthstandards"]["urls_path"]) as f:
         urls = json.load(f)
 
+    options = Options()
+    options.headless = True
+    options.add_argument("--log-level=3")
+    options.add_experimental_option("excludeSwitches", ["enable-logging"])
+    options.add_argument("window-size=1920,1080")
+
     pool_count = cpu_count()
     pool_count = ceil(pool_count / 4) if pool_count > 10 else ceil(pool_count / 2)
 
     with Pool(pool_count) as p:
         try:
-            all_data = p.map(pull_table_data, [[url, config] for url in urls])
+            all_data = p.map(pull_table_data, [[url, options] for url in urls])
         except Exception as e:
             exit(-1)
 
