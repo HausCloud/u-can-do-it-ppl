@@ -1,5 +1,11 @@
 ['general']
 
+['frontend']
+
+['backend']
+
+['database']
+
 ['strengthstandards']
 chrome_driver_path = './chromedriver.exe'
 urls_path = './urls.json'
