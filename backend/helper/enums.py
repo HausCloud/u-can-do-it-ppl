@@ -35,6 +35,10 @@ class HttpStatusCodes(Enum):
         "msg": "User is inactive",
         "status_code": status.HTTP_423_LOCKED,
     }
+    mia_perms = {
+        "msg": "No permissions defined in 'scopes'",
+        "status_code": status.HTTP_400_BAD_REQUEST,
+    }
     # mia_username = {
     #     "msg": "Username is required",
     #     "status_code": status.HTTP_400_BAD_REQUEST,
@@ -46,6 +50,15 @@ class HttpStatusCodes(Enum):
 
 
 class Scopes(Enum):
-    oneself = "Read current user's data"
-    oneself_workouts = "Read current user's workout(s)"
-    oneself_maxes = "Read current user's max(es)"
+    oneself_read = "Read current user's data"
+    oneself_write = "Modify current user's data"
+    oneself_read_workouts = "Read current user's workout(s)"
+    oneself_read_maxes = "Read current user's max(es)"
+    oneself_write_workouts = "Modify current user's workout(s)"
+    oneself_write_maxes = "Modify current user's max(es)"
+    others_read = "Read other user's data"
+    others_write = "Modify other user's data"
+    others_read_workouts = "Read other user's workout(s)"
+    others_read_maxes = "Read other user's max(es)"
+    others_write_workouts = "Modify other user's workout(s)"
+    others_write_maxes = "Modify other user's max(es)"
