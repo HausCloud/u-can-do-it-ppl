@@ -7,11 +7,15 @@ from fastapi.security import (
 )
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from helper.enums import HttpStatusCodes, Scopes
-from helper.utils import get_http_exc
+from helper.enums import Scopes
+from helper.utils import get_http_exc, modify_scope_name
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from models import api_models, db_models
+
+# from sqlalchemy import text
+# import json
+# from pprint import pprint
 import db_ops
 
 db_models.Base.metadata.create_all(bind=db_models.engine)
@@ -30,17 +34,10 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 ACCESS_TOKEN_EXTENSION_MINUTES = 15
 # MAX_FAILED_LOGIN_ATTEMPTS = 3
-
+SCOPES = {modify_scope_name(scope): scope.value for scope in Scopes}
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="token",
-    scopes={
-        "ONESELF": Scopes.oneself.value,
-        "ONESELF:WORKOUTS": Scopes.oneself_workouts.value,
-        "ONESELF:MAXES": Scopes.oneself_maxes.value,
-    },
-)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", scopes=SCOPES)
 fastapi = FastAPI()
 
 
@@ -77,13 +74,13 @@ def get_current_user(
     credentials_exception = get_http_exc("general", customer_header=auth_val)
 
     try:
-        # Where the heck does payload come from??
         payload = jwt.decode(token=token, key=SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("username")
+        username = payload.get("sub")
         if username is None:
             raise credentials_exception
+
         token_scopes = payload.get("scopes", [])
-        token_data = api_models.TokenData(username=username, scopes=token_scopes)
+        token_data = api_models.TokenIn(username=username, scopes=token_scopes)
     except (JWTError, ValidationError) as e:
         raise credentials_exception
 
@@ -91,11 +88,18 @@ def get_current_user(
 
     if user is None:
         raise credentials_exception
+
+    print(security_scopes.scopes)
+    print(token_data.scopes)
+
+    for scope in security_scopes.scopes:
+        if scope not in token_data.scopes:
+            raise get_http_exc("bad_perms", customer_header=auth_val)
     return user
 
 
 def get_current_active_user(
-    current_user: api_models.User = Depends(get_current_user),
+    current_user: api_models.UserOut = Depends(get_current_user),
 ):
     if not current_user.is_active:
         raise get_http_exc("inactive_user")
@@ -105,7 +109,7 @@ def get_current_active_user(
 # Routes / Endpoints
 
 
-@fastapi.post("/token", response_model=api_models.TokenCreate)
+@fastapi.post("/token", response_model=api_models.TokenOut)
 def login_for_access_token(
     form_data: OAuth2PasswordRequestFormStrict = Depends(),
     db: Session = Depends(get_session),
@@ -123,22 +127,25 @@ def login_for_access_token(
         raise get_http_exc("bad_pass")
     elif db_user.is_active == False:
         raise get_http_exc("inactive_user")
+    elif not form_data.scopes:
+        raise get_http_exc("mia_perms")
 
+    scopes = db_ops.get_permissions(db, db_user, form_data.scopes)
+    print(scopes)
     access_token = create_access_token(
-        data={"username": db_user.username, "scopes": form_data.scopes},
+        data={"sub": db_user.username, "scopes": scopes},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
 
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@fastapi.post("/user/", response_model=api_models.User)
-def create_user(user: api_models.UserCreate, db: Session = Depends(get_session)):
+@fastapi.post("/user/", response_model=api_models.UserOut)
+def create_user(user: api_models.UserIn, db: Session = Depends(get_session)):
     existing_user = db_ops.get_user_by_username(db, user.username)
     if existing_user:
         raise get_http_exc("exist_user")
 
-    # Map new user attributes
     user.password = get_password_hash(user.password)
 
     new_user = db_ops.create_user(db=db, user=user)
@@ -150,10 +157,10 @@ def create_user(user: api_models.UserCreate, db: Session = Depends(get_session))
     return new_user
 
 
-@fastapi.get("/user/oneself", response_model=api_models.User)
+@fastapi.get("/user/oneself", response_model=api_models.UserOut)
 def read_user_oneself(
-    current_user: api_models.User = Security(
-        get_current_active_user, scopes=["ONESELF"]
+    current_user: api_models.UserBase = Security(
+        get_current_active_user, scopes=[modify_scope_name(Scopes.oneself_read)]
     )
 ):
     return current_user

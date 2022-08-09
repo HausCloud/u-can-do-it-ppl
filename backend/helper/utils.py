@@ -1,5 +1,10 @@
 from fastapi import HTTPException
+from .enums import Scopes
 from helper.enums import HttpStatusCodes
+
+
+def modify_scope_name(some_scope) -> str:
+    return some_scope.name.replace("_", ":")
 
 
 def get_http_exc(enum_attr: str = "", customer_header: dict = {}):
